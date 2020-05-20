@@ -8,7 +8,7 @@
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%date %level %msg%n %ex{1}</pattern>
+            <pattern>%date %highlight(%level) %msg%n %ex{1}</pattern>
         </encoder>
     </appender>
 

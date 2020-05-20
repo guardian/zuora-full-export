@@ -2,7 +2,7 @@ package com.gu.zuora.fullexport
 
 import java.util.concurrent.Executors
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 import Program._
 import Impl._
@@ -16,13 +16,16 @@ import com.gu.spy._
 import InputReader._
 import com.typesafe.scalalogging.LazyLogging
 
+import scala.concurrent.duration.Duration
+
 object Cli extends App with LazyLogging {
   private def startExportProcess(in: Input): Unit = {
     implicit val nonDeamonEc = ExecutionContext.fromExecutor(Executors.newCachedThreadPool)
-    Future.traverse(in.objects) { obj =>
-      Future(retry(2)(exportObject(obj, in.beginningOfTime)))
+    val overallResultF = Future.traverse(in.objects) { obj =>
+      Future(retry(1)(exportObject(obj, in.beginningOfTime)))
         .andThen(logRunningStatus(obj))
-    }.onComplete(logFinalResultWithDelay(in))
+    }
+    logFinalResultWithDelay(overallResultF, in)
   }
 
   private def logRunningStatus(obj: ZuoraObject): PartialFunction[Try[String], Unit]  = {
@@ -31,13 +34,13 @@ object Cli extends App with LazyLogging {
   }
 
   /* Make sure the final log statement is the overall result. Needed due to async out-of-order logging happening in threads */
-  private def logFinalResultWithDelay(in: Input): PartialFunction[Try[List[String]], Unit] = {
-    case Success(_) =>
-      Thread.sleep(5000)
-      logger.info(s"Successfully completed full export of ${in.objects.map(_.name)}")
-    case Failure(e) =>
-      Thread.sleep(5000)
-      logger.error(s"Some object did not fully export. Please keep restarting the process until all are done. It is safe to simply restart as it will resume from last bookmark.")
+  private def logFinalResultWithDelay(overallResult: Future[_], in: Input) = {
+    Try(Await.result(overallResult, Duration.Inf)) match {
+      case Success(_) =>
+        logger.info(s"Successfully completed full export of ${in.objects.map(_.name)}")
+      case Failure(e) =>
+        logger.error(s"Some object did not fully export. Please keep restarting the process until all are done. It is safe to simply restart as it will resume from last bookmark.")
+    }
   }
 
   input(args)

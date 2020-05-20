@@ -139,7 +139,7 @@ object Impl extends LazyLogging {
       .tap(logError)
       .body
       .pipe(read[QueryResponse](_))
-      .tap(job => Assert(s"$objectName job should start successfully: $job", !jobSuccessfullyStarted(job)))
+      .tap(job => Assert(s"$objectName job should start successfully: $job", jobSuccessfullyStarted(job)))
       .id
       .get
   }
