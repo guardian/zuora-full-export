@@ -1,12 +1,14 @@
-package example
+package com.gu.zuora.fullexport
 
-import example.Impl.discoverFields
-import example.Model.OptionPickler._
-import example.Model._
 import better.files._
+
 import scala.util.Try
 import com.gu.spy._
+import com.gu.zuora.fullexport.Model._
+import com.gu.zuora.fullexport.Model.OptionPickler._
+import com.gu.zuora.fullexport.Impl._
 import com.typesafe.scalalogging.LazyLogging
+
 import scala.util.chaining._
 
 object InputReader extends LazyLogging {

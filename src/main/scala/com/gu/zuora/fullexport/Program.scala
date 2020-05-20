@@ -1,11 +1,11 @@
-package example
+package com.gu.zuora.fullexport
 
 import java.time.LocalDate
 import java.time.LocalDate._
 
-import example.Impl._
+import Impl._
 import better.files._
-import example.Model.JobResults
+import Model.{JobResults, ZuoraObject}
 
 import scala.util.Try
 import scala.util.chaining._
@@ -21,11 +21,12 @@ import com.typesafe.scalalogging.LazyLogging
  * 4. Keep checking if the job is done
  * 5. Download chunk to object-YYYY-MM-DD.csv
  * 6. Append lines from the chunk to aggregate file object.csv
- * 7. Once all chunks have downloaded write object.success file
+ * 7. Verify record count of aggregate file against metadata of chunks
+ * 8. Once all chunks have downloaded write object.success file
  */
 object Program extends LazyLogging {
-  def exportObject(objectName: String, fields: List[String], beginningOfTime: String): String = {
-//    if (objectName == "Account") boom(15000)
+  def exportObject(obj: ZuoraObject, beginningOfTime: String): String = {
+    val ZuoraObject(objectName, fields) = obj
     if (file"$scratchDir/$objectName.success".exists) {
       s"$objectName full export has already successfully competed. Skipping!"
     } else {
@@ -43,10 +44,8 @@ object Program extends LazyLogging {
         val csvContents = downloadCsvFile(batch)
         val lines = csvContents.linesIterator.toList tap( _ => logger.info(s"Completed converting downloaded $objectName content to lines"))
         val recordCountWithoutHeader = lines.length - 1
-        assert(recordCountWithoutHeader == batch.recordCount, s"Downloaded record count should match $jobId metadata record count $recordCountWithoutHeader =/= ${batch.recordCount}; $lines")
-
+        Assert(s"Downloaded record count should match $jobId metadata record count $recordCountWithoutHeader =/= ${batch.recordCount}; $lines", recordCountWithoutHeader == batch.recordCount)
         writeHeaderOnce(objectName, lines) tap (_ => logger.info(s"Completed $objectName header processing"))
-
         lines match {
           case Nil => throw new RuntimeException("Downloaded CSV file should have at least a header")
 
@@ -68,9 +67,9 @@ object Program extends LazyLogging {
             logger.info(s"Done $objectName $start to $end chunk $chunk with record count $recordCountWithoutHeader exported by job $jobId")
         }
       }
-
+      verifyAggregateFileAgainstChunkMetadata(objectName)
       file"$scratchDir/$objectName.success".touch()
-      s"All $objectName chunks exported!"
+      s"All $objectName chunks successfully exported and verified!"
     }
   }
 }
