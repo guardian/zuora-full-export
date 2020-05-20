@@ -1,0 +1,109 @@
+{
+  "beginningOfTime": "2020-01-01",
+  "objects": [
+    {
+      "name": "Account",
+      "fields": [
+        "Id",
+        "CreatedDate",
+        "UpdatedDate"
+      ]
+    },
+    {
+      "name": "RatePlanCharge",
+      "fields": [
+        "Id",
+        "CreatedDate",
+        "UpdatedDate"
+      ]
+    },
+    {
+      "name": "RatePlanChargeTier",
+      "fields": [
+        "Id",
+        "CreatedDate",
+        "UpdatedDate"
+      ]
+    },
+    {
+      "name": "RatePlan",
+      "fields": [
+        "Id",
+        "CreatedDate",
+        "UpdatedDate"
+      ]
+    },
+    {
+      "name": "Subscription",
+      "fields": [
+        "Id",
+        "CreatedDate",
+        "UpdatedDate"
+      ]
+    },
+    {
+      "name": "Contact",
+      "fields": [
+        "Id",
+        "CreatedDate",
+        "UpdatedDate"
+      ]
+    },
+    {
+      "name": "PaymentMethod",
+      "fields": [
+        "Id",
+        "CreatedDate",
+        "UpdatedDate"
+      ]
+    },
+    {
+      "name": "Amendment",
+      "fields": [
+        "Id",
+        "CreatedDate",
+        "UpdatedDate"
+      ]
+    },
+    {
+      "name": "Invoice",
+      "fields": [
+        "Id",
+        "CreatedDate",
+        "UpdatedDate"
+      ]
+    },
+    {
+      "name": "Payment",
+      "fields": [
+        "Id",
+        "CreatedDate",
+        "UpdatedDate"
+      ]
+    },
+    {
+      "name": "InvoicePayment",
+      "fields": [
+        "Id",
+        "CreatedDate",
+        "UpdatedDate"
+      ]
+    },
+    {
+      "name": "Refund",
+      "fields": [
+        "Id",
+        "CreatedDate",
+        "UpdatedDate"
+      ]
+    },
+    {
+      "name": "InvoiceItem",
+      "fields": [
+        "Id",
+        "CreatedDate",
+        "UpdatedDate"
+      ]
+    }
+  ]
+}
