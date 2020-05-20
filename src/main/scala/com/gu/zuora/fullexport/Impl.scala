@@ -1,15 +1,18 @@
-package example
+package com.gu.zuora.fullexport
 
 import java.lang.System.getenv
 import java.time.{LocalDate, YearMonth}
 import java.time.temporal.ChronoUnit
-import scalaj.http.{BaseHttp, HttpOptions}
+
+import scalaj.http.{BaseHttp, HttpOptions, HttpResponse}
+
 import scala.concurrent.duration._
 import scala.util.chaining._
 import better.files._
 import Model._
 import Model.OptionPickler._
 import com.typesafe.scalalogging.LazyLogging
+
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
@@ -78,12 +81,16 @@ object Impl extends LazyLogging {
     def accessToken(): String = _accessToken
   }
 
-  import PeriodicAccessToken._
+  private def logError(response: HttpResponse[String]): Unit =
+    if (response.code != 200) logger.error(response.body)
+
+ import PeriodicAccessToken._
 
   def describe(objectName: String) = {
     HttpWithLongTimeout(s"$zuoraApiHost/v1/describe/${objectName}")
       .header("Authorization", s"Bearer ${accessToken()}")
       .asString
+      .tap(logError)
       .body
   }
 
@@ -98,6 +105,10 @@ object Impl extends LazyLogging {
 
   def fromBookmarkUntilNowByMonth(startDate: LocalDate): Range.Inclusive =
     0 to ChronoUnit.MONTHS.between(YearMonth.from(startDate), YearMonth.from(LocalDate.now)).toInt
+
+  def jobSuccessfullyStarted(startJobResponse: QueryResponse): Boolean = {
+    startJobResponse.id.isDefined && startJobResponse.status == "submitted"
+  }
 
   def startAquaJob(zoql: String, objectName: String, start: LocalDate): String = {
     val body =
@@ -125,10 +136,18 @@ object Impl extends LazyLogging {
       .postData(body)
       .method("POST")
       .asString
-//      .tap(response => { println(response.code); println(response.body); if (response.code != 200) logger.error(response.body) })
+      .tap(logError)
       .body
       .pipe(read[QueryResponse](_))
+      .tap(job => Assert(s"$objectName job should start successfully: $job", !jobSuccessfullyStarted(job)))
       .id
+      .get
+  }
+
+  def jobIsHealthy(jobResults: JobResults): Boolean = {
+    val topLevelJobIsHealthy = !List("aborted", "error").contains(jobResults.status)
+    val batchIsHealthy = !jobResults.batches.map(_.status).exists(List("aborted", "cancelled").contains)
+    topLevelJobIsHealthy && batchIsHealthy
   }
 
   /**
@@ -137,33 +156,31 @@ object Impl extends LazyLogging {
    * https://knowledgecenter.zuora.com/DC_Developers/AB_Aggregate_Query_API/C_Get_Job_ID
    */
   @tailrec def getJobResult(jobId: String): JobResults = {
-    val response = HttpWithLongTimeout(s"$zuoraApiHost/v1/batch-query/jobs/$jobId")
+    val jobResults = HttpWithLongTimeout(s"$zuoraApiHost/v1/batch-query/jobs/$jobId")
       .header("Authorization", s"Bearer ${accessToken()}")
       .header("Content-Type", "application/json")
       .asString
-
-    val jobResults = read[JobResults](response.body)
-
-    jobResults.batches.find(_.status == "aborted").map { abortedBatch =>
-      throw new RuntimeException(s"Failed to complete query: $abortedBatch")
-    }
+      .tap(logError)
+      .body
+      .pipe(read[JobResults](_))
+      .tap(job => Assert(s"Job $jobId should not be aborted or cancelled", jobIsHealthy(job)))
 
     if (jobResults.batches.forall(_.status == "completed"))
       jobResults
     else {
-      logger.info(s"Checking if getJobResult($jobId) is done...")
-      //      Thread.sleep(1.minute.toMillis)
-      Thread.sleep(5.seconds.toMillis) // FIXME: Increase delay
+      logger.info(s"Checking if job is done $jobResults ...")
+      Thread.sleep(30.seconds.toMillis) // FIXME: Increase delay
       getJobResult(jobId) // Keep trying until lambda timeout
     }
   }
 
   def downloadCsvFile(batch: Batch): String = {
     logger.info(s"Downloading $batch ....")
-    val fileId = batch.fileId.getOrElse(throw new RuntimeException("Failed to get csv file due to missing fileId"))
+    val fileId = batch.fileId.getOrElse(Assert(s"Batch should have fileId: $batch"))
     HttpWithLongTimeout(s"$zuoraApiHost/v1/file/$fileId")
       .header("Authorization", s"Bearer ${accessToken()}")
       .asString
+      .tap(logError)
       .body
   }
 
@@ -216,8 +233,32 @@ object Impl extends LazyLogging {
           file"$outputDir/$objectName.csv".appendLines(s"IsDeleted,$header")
 
         case Nil =>
-          throw new RuntimeException(s"Downloaded $objectName CSV file should have at least a header")
+          Assert(s"Downloaded $objectName CSV file should have at least a header", true)
       }
     }
+  }
+
+  def verifyAggregateFileAgainstChunkMetadata(objectName: String): Unit = {
+    logger.info(s"Verifying total record count for $objectName.csv ...")
+    val metadataTotalRecordCount = scratchDir
+      .toFile
+      .listRecursively
+      .filter(_.name.startsWith(s"$objectName-"))
+      .filter(_.extension.contains(".metadata"))
+      .map(file => file.contentAsString.pipe(read[JobResults](_)))
+      .flatMap(_.batches.map(_.recordCount))
+      .sum
+    val aggregateFileRecordCount = file"$outputDir/$objectName.csv".lineIterator.size - (1 /* header */ )
+    Assert(
+      s"$objectName.csv aggregate record count should match total metadata record count: $aggregateFileRecordCount =/= ",
+      metadataTotalRecordCount == aggregateFileRecordCount
+    )
+    logger.info(s"$objectName record count verified against chunk metadata: $metadataTotalRecordCount = $aggregateFileRecordCount")
+  }
+
+  // Using custom assert because Futures do not handle fatal AssertionError
+  object Assert {
+    def apply(msg: String, predicate: Boolean = true): Unit =
+      if (!predicate) throw new RuntimeException(msg)
   }
 }

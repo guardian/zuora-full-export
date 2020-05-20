@@ -1,4 +1,4 @@
-package example
+package com.gu.zuora.fullexport
 
 object Model {
   object OptionPickler extends upickle.AttributeTagged {
@@ -18,8 +18,8 @@ object Model {
   import OptionPickler._
 
   case class AccessToken(access_token: String)
-  case class QueryResponse(id: String)
-  case class Batch(batchId: String, name: String, status: String, recordCount: Int, fileId: Option[String] = None)
+  case class QueryResponse(id: Option[String] = None, status: String, message: Option[String] = None)
+  case class Batch(batchId: Option[String] = None, name: String, status: String, recordCount: Int, fileId: Option[String] = None)
   case class JobResults(id: String, status: String, batches: List[Batch])
   case class ZuoraObject(name: String, fields: List[String])
   case class Input(beginningOfTime: String, objects: List[ZuoraObject])
