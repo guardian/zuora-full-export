@@ -114,7 +114,7 @@ object Impl extends LazyLogging {
     val body =
       s"""
          |{
-         |	"format" : "csv",
+         |	"format" : "gzip",
          |	"version" : "1.1",
          |	"name" : "zuora-full-export",
          |	"encrypted" : "none",
@@ -122,7 +122,7 @@ object Impl extends LazyLogging {
          |	"dateTimeUtc" : "true",
          |	"queries" : [
          |		{
-         |			"name" : "${objectName}-$start",
+         |			"name" : "$objectName-$start",
          |			"query" : "$zoql",
          |			"type" : "zoqlexport"
          |		}
@@ -174,14 +174,18 @@ object Impl extends LazyLogging {
     }
   }
 
-  def downloadCsvFile(batch: Batch): String = {
-    logger.info(s"Downloading $batch ....")
+  def downloadCsvFile(batch: Batch, objectName: String, start: LocalDate) = {
+    val chunkFile = file"$scratchDir/$objectName-$start.csv"
+    Try(chunkFile.delete())
+    logger.info(s"Downloading $batch ...")
     val fileId = batch.fileId.getOrElse(Assert(s"Batch should have fileId: $batch"))
-    HttpWithLongTimeout(s"$zuoraApiHost/v1/file/$fileId")
+    val binary = HttpWithLongTimeout(s"$zuoraApiHost/v1/file/$fileId")
       .header("Authorization", s"Bearer ${accessToken()}")
-      .asString
-      .tap(logError)
+      .asBytes
       .body
+    val tempFile = File.newTemporaryFile()
+    tempFile.writeByteArray(binary).unGzipTo(chunkFile)
+    chunkFile
   }
 
   def discoverFields(objectName: String): List[String] = {

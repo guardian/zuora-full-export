@@ -41,19 +41,16 @@ object Program extends LazyLogging {
         val jobId = startAquaJob(zoqlQuery, objectName, start) tap { jobId => logger.info(s"Exporting $objectName $start to $end chunk $chunk by job $jobId") }
         val jobResult = getJobResult(jobId)
         val batch = jobResult.batches.head
-        val csvContents = downloadCsvFile(batch)
-        val lines = csvContents.linesIterator
-        val recordCountWithoutHeader = csvContents.linesIterator.length - 1
+        val filePath = downloadCsvFile(batch, objectName, start)
+        val iteratorForLength = filePath.lineIterator
+        val lines = filePath.lineIterator
+        val recordCountWithoutHeader = iteratorForLength.length - 1
         Assert(s"Downloaded record count should match $jobId metadata record count $recordCountWithoutHeader =/= ${batch.recordCount}", recordCountWithoutHeader == batch.recordCount)
         writeHeaderOnceAndAdvanceIterator(objectName, lines) tap (_ => logger.info(s"Completed $objectName-$start.csv header processing"))
         logger.info(s"Writing downloaded $objectName records to .csv file")
-        Try(file"$scratchDir/$objectName-$start.csv".delete())
-        val chunkFile = file"$scratchDir/$objectName-$start.csv"
         val aggregateFile = file"$outputDir/$objectName.csv"
         val linesWithIsDeletedColumn = lines.map(row => s"false,$row")
-        val (linesCopyA, linesCopyB) = linesWithIsDeletedColumn.duplicate
-        chunkFile.printLines(linesCopyA)
-        aggregateFile.printLines(linesCopyB)
+        aggregateFile.printLines(linesWithIsDeletedColumn)
         file"$scratchDir/$objectName-$start.metadata".write(write(jobResult))
         file"$scratchDir/$objectName.bookmark".write(end.toString)
         logger.info(s"Done $objectName $start to $end chunk $chunk with record count $recordCountWithoutHeader exported by job $jobId")
