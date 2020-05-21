@@ -42,30 +42,21 @@ object Program extends LazyLogging {
         val jobResult = getJobResult(jobId)
         val batch = jobResult.batches.head
         val csvContents = downloadCsvFile(batch)
-        val lines = csvContents.linesIterator.toList tap( _ => logger.info(s"Completed converting downloaded $objectName content to lines"))
-        val recordCountWithoutHeader = lines.length - 1
-        Assert(s"Downloaded record count should match $jobId metadata record count $recordCountWithoutHeader =/= ${batch.recordCount}; $lines", recordCountWithoutHeader == batch.recordCount)
-        writeHeaderOnce(objectName, lines) tap (_ => logger.info(s"Completed $objectName header processing"))
-        lines match {
-          case Nil => throw new RuntimeException("Downloaded CSV file should have at least a header")
-
-          case header :: Nil => // file is empty so just touch it
-            Try(file"$scratchDir/$objectName-$start.csv".delete())
-            file"$scratchDir/$objectName-$start.csv".touch()
-            file"$scratchDir/$objectName-$start.metadata".write(write(jobResult))
-            file"$scratchDir/$objectName.bookmark".write(end.toString)
-            logger.info(s"$objectName $start - $end empty chunk $chunk done.")
-
-          case header :: rows =>
-            logger.info(s"Appending $objectName lines to .csv file")
-            val csvWithDeletedColumn = rows.map(row => s"false,$row")
-            Try(file"$scratchDir/$objectName-$start.csv".delete())
-            file"$scratchDir/$objectName-$start.csv".printLines(csvWithDeletedColumn)
-            file"$scratchDir/$objectName-$start.metadata".write(write(jobResult))
-            file"$outputDir/$objectName.csv".printLines(csvWithDeletedColumn)
-            file"$scratchDir/$objectName.bookmark".write(end.toString)
-            logger.info(s"Done $objectName $start to $end chunk $chunk with record count $recordCountWithoutHeader exported by job $jobId")
-        }
+        val lines = csvContents.linesIterator
+        val recordCountWithoutHeader = csvContents.linesIterator.length - 1
+        Assert(s"Downloaded record count should match $jobId metadata record count $recordCountWithoutHeader =/= ${batch.recordCount}", recordCountWithoutHeader == batch.recordCount)
+        writeHeaderOnceAndAdvanceIterator(objectName, lines) tap (_ => logger.info(s"Completed $objectName-$start.csv header processing"))
+        logger.info(s"Writing downloaded $objectName records to .csv file")
+        Try(file"$scratchDir/$objectName-$start.csv".delete())
+        val chunkFile = file"$scratchDir/$objectName-$start.csv"
+        val aggregateFile = file"$outputDir/$objectName.csv"
+        val linesWithIsDeletedColumn = lines.map(row => s"false,$row")
+        val (linesCopyA, linesCopyB) = linesWithIsDeletedColumn.duplicate
+        chunkFile.printLines(linesCopyA)
+        aggregateFile.printLines(linesCopyB)
+        file"$scratchDir/$objectName-$start.metadata".write(write(jobResult))
+        file"$scratchDir/$objectName.bookmark".write(end.toString)
+        logger.info(s"Done $objectName $start to $end chunk $chunk with record count $recordCountWithoutHeader exported by job $jobId")
       }
       verifyAggregateFileAgainstChunkMetadata(objectName)
       file"$scratchDir/$objectName.success".touch()

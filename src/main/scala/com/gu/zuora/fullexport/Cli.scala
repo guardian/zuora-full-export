@@ -22,7 +22,7 @@ object Cli extends App with LazyLogging {
   private def startExportProcess(in: Input): Unit = {
     implicit val nonDeamonEc = ExecutionContext.fromExecutor(Executors.newCachedThreadPool)
     val overallResultF = Future.traverse(in.objects) { obj =>
-      Future(retry(1)(exportObject(obj, in.beginningOfTime)))
+      Future(retry(2)(exportObject(obj, in.beginningOfTime)))
         .andThen(logRunningStatus(obj))
     }
     logFinalResultWithDelay(overallResultF, in)
