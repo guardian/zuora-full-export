@@ -114,7 +114,7 @@ object Impl extends LazyLogging {
     val body =
       s"""
          |{
-         |	"format" : "csv",
+         |	"format" : "gzip",
          |	"version" : "1.1",
          |	"name" : "zuora-full-export",
          |	"encrypted" : "none",
@@ -122,7 +122,7 @@ object Impl extends LazyLogging {
          |	"dateTimeUtc" : "true",
          |	"queries" : [
          |		{
-         |			"name" : "${objectName}-$start",
+         |			"name" : "$objectName-$start",
          |			"query" : "$zoql",
          |			"type" : "zoqlexport"
          |		}
@@ -169,19 +169,23 @@ object Impl extends LazyLogging {
       jobResults
     else {
       logger.info(s"Checking if job is done $jobResults ...")
-      Thread.sleep(30.seconds.toMillis) // FIXME: Increase delay
+      Thread.sleep(30.seconds.toMillis)
       getJobResult(jobId) // Keep trying until lambda timeout
     }
   }
 
-  def downloadCsvFile(batch: Batch): String = {
-    logger.info(s"Downloading $batch ....")
+  def downloadCsvFile(batch: Batch, objectName: String, start: LocalDate) = {
+    val chunkFile = file"$scratchDir/$objectName-$start.csv"
+    Try(chunkFile.delete())
+    logger.info(s"Downloading $batch ...")
     val fileId = batch.fileId.getOrElse(Assert(s"Batch should have fileId: $batch"))
-    HttpWithLongTimeout(s"$zuoraApiHost/v1/file/$fileId")
+    val binary = HttpWithLongTimeout(s"$zuoraApiHost/v1/file/$fileId")
       .header("Authorization", s"Bearer ${accessToken()}")
-      .asString
-      .tap(logError)
+      .asBytes
       .body
+    val tempFile = File.newTemporaryFile()
+    tempFile.writeByteArray(binary).unGzipTo(chunkFile)
+    chunkFile
   }
 
   def discoverFields(objectName: String): List[String] = {
@@ -223,19 +227,16 @@ object Impl extends LazyLogging {
   val scratchDir = "output/scratch"
   val outputDir = "output"
 
-  def writeHeaderOnce(objectName: String, lines: List[String]): Unit = {
-    if (file"$scratchDir/$objectName-header.csv".exists) {
-      // do nothing
-    } else {
-      lines match {
-        case header :: _ =>
+  def writeHeaderOnceAndAdvanceIterator(objectName: String, lines: Iterator[String]): Unit = {
+      lines.nextOption() match { // WARNING: It is important to advance the iterator otherwise multiple header rows might be written
+        case Some(header) if file"$scratchDir/$objectName-header.csv".exists =>
+          // do nothing
+        case Some(header) =>
           file"$scratchDir/$objectName-header.csv".appendLines(s"IsDeleted,$header")
           file"$outputDir/$objectName.csv".appendLines(s"IsDeleted,$header")
-
-        case Nil =>
-          Assert(s"Downloaded $objectName CSV file should have at least a header", true)
+        case None =>
+          Assert(s"Downloaded $objectName CSV file should have at least a header")
       }
-    }
   }
 
   def verifyAggregateFileAgainstChunkMetadata(objectName: String): Unit = {
@@ -250,7 +251,7 @@ object Impl extends LazyLogging {
       .sum
     val aggregateFileRecordCount = file"$outputDir/$objectName.csv".lineIterator.size - (1 /* header */ )
     Assert(
-      s"$objectName.csv aggregate record count should match total metadata record count: $aggregateFileRecordCount =/= ",
+      s"$objectName.csv aggregate record count should match total metadata record count: $metadataTotalRecordCount =/= $aggregateFileRecordCount",
       metadataTotalRecordCount == aggregateFileRecordCount
     )
     logger.info(s"$objectName record count verified against chunk metadata: $metadataTotalRecordCount = $aggregateFileRecordCount")
