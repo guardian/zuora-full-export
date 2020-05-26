@@ -67,10 +67,66 @@ Stage=PROD (CODE stage will target sandbox)
 
 Run it with `sbt run`. The logs provide realtime feedback.
 
+## Upload large CSV files to raw datalake buckets
+
+This step is currently not automated. Import fresh janus credentials and execute the following AWS CLI commands. Note 
+upload commands have to include `--acl`: 
+
+```scala
+aws s3 cp  Account.csv              s3://ophan-raw-zuora-increment-account/            --acl bucket-owner-read --profile membership
+aws s3 cp  RatePlanCharge.csv       s3://ophan-raw-zuora-increment-rateplancharge/     --acl bucket-owner-read --profile membership
+aws s3 cp  RatePlanChargeTier.csv   s3://ophan-raw-zuora-increment-rateplanchargetier/ --acl bucket-owner-read --profile membership
+aws s3 cp  RatePlan.csv             s3://ophan-raw-zuora-increment-rateplan/           --acl bucket-owner-read --profile membership
+aws s3 cp  Subscription.csv         s3://ophan-raw-zuora-increment-subscription/       --acl bucket-owner-read --profile membership
+aws s3 cp  Contact.csv              s3://ophan-raw-zuora-increment-contact/            --acl bucket-owner-read --profile membership
+aws s3 cp  PaymentMethod.csv        s3://ophan-raw-zuora-increment-paymentmethod/      --acl bucket-owner-read --profile membership
+aws s3 cp  Amendment.csv            s3://ophan-raw-zuora-increment-amendment/          --acl bucket-owner-read --profile membership
+aws s3 cp  Invoice.csv              s3://ophan-raw-zuora-increment-invoice/            --acl bucket-owner-read --profile membership
+aws s3 cp  Payment.csv              s3://ophan-raw-zuora-increment-payment/            --acl bucket-owner-read --profile membership
+aws s3 cp  InvoicePayment.csv       s3://ophan-raw-zuora-increment-invoicepayment/     --acl bucket-owner-read --profile membership
+aws s3 cp  Refund.csv               s3://ophan-raw-zuora-increment-refund/             --acl bucket-owner-read --profile membership
+aws s3 cp  InvoiceItem.csv          s3://ophan-raw-zuora-increment-invoiceitem/        --acl bucket-owner-read --profile membership
+```
+
 ## Auto-discovery of field names
 
 Running the app with `sbt "run auto"` will query Zuora to auto-detect all object field names as well as IDs of 
-related objects and export them in alphabetical order. Makre sure to adjust your ingestion schemas accordingly.
+related objects and export them in alphabetical order. Make sure to adjust your ingestion schemas accordingly.
+
+## (Obsolete) How to perform manual full export? 
+
+_This is just for informational purposes and documents the time-consuming and error-prone steps we had to take
+before `zuora-full-export` app was operational._
+
+1. Zuora is not capable of doing a full export of InvoiceItem hence the WHERE clause: https://support.zuora.com/hc/en-us/requests/186104
+
+    ```
+     WHERE (CreatedDate >= '2019-08-28T00:00:00') AND (CreatedDate <= '2099-01-01T00:00:00')
+    ```
+1. Manually, using postman perform year by year exports:
+
+    ```
+    WHERE (CreatedDate >= '2014-01-01T00:00:00') AND (CreatedDate <= '2015-01-01T00:00:00')
+    WHERE (CreatedDate >= '2015-01-01T00:00:00') AND (CreatedDate <= '2016-01-01T00:00:00')
+    ...
+    ```
+1. Download locally CSVs from https://www.zuora.com/apps/BatchQuery.do
+1. Concatenate all the CSV
+    
+    ```
+    cat InvoiceItem-1.csv > InvoiceItem.csv
+    tail -n +2 InvoiceItem-2.csv >> InvoiceItem.csv
+    tail -n +2 InvoiceItem-3.csv >> InvoiceItem.csv
+    ...
+1. Resulting `InvoiceItem.csv` should be >18GB and have >20M records
+1. Perform some sanity checks, for example, `wc -l`
+1. Manually upload resulting CSV to bucket `https://s3.console.aws.amazon.com/s3/buckets/ophan-raw-zuora-increment-invoiceitem` 
+1. Run ophan job
+1. Adjust to filter from yesterday, so if yesterday is 2020-12-20, then 
+   
+    ```
+    WHERE (CreatedDate >= '2020-12-20T00:00:00') AND (CreatedDate <= '2099-01-01T00:00:00')
+    ``` 
 
 
 
