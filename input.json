@@ -182,7 +182,9 @@
         "IsInvoiceSeparate",
         "LastPriceChangeDate__c",
         "legacy_cat__c",
-        "LegacyContractStartDate__c"
+        "LegacyContractStartDate__c",
+        "CorporateAccountId__c",
+        "RedemptionCode__c"
       ]
     },
     {
