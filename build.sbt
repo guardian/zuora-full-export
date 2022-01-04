@@ -13,7 +13,7 @@ lazy val root = (project in file("."))
       "com.github.pathikrit" %% "better-files" % "3.8.0",
       "com.gu" %% "spy" % "0.1.1",
       "ch.qos.logback" % "logback-classic" % "1.2.10",
-      "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2"
+      "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4"
     )
   )
 
