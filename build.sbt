@@ -9,10 +9,10 @@ lazy val root = (project in file("."))
     libraryDependencies ++= Seq(
       "org.scala-lang.modules" %% "scala-xml" % "1.3.0",
       "org.scalaj" %% "scalaj-http" % "2.4.2",
-      "com.lihaoyi" %% "upickle" % "1.1.0",
-      "com.github.pathikrit" %% "better-files" % "3.9.1",
+      "com.lihaoyi" %% "upickle" % "1.4.4",
+      "com.github.pathikrit" %% "better-files" % "3.8.0",
       "com.gu" %% "spy" % "0.1.1",
-      "ch.qos.logback" % "logback-classic" % "1.2.3",
+      "ch.qos.logback" % "logback-classic" % "1.2.10",
       "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2"
     )
   )
