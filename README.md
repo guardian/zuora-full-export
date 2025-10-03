@@ -73,19 +73,19 @@ This step is currently not automated. Import fresh janus credentials and execute
 upload commands have to include `--acl`: 
 
 ```scala
-aws s3 cp  Account.csv              s3://ophan-raw-zuora-increment-account/            --acl bucket-owner-read --profile membership
-aws s3 cp  RatePlanCharge.csv       s3://ophan-raw-zuora-increment-rateplancharge/     --acl bucket-owner-read --profile membership
-aws s3 cp  RatePlanChargeTier.csv   s3://ophan-raw-zuora-increment-rateplanchargetier/ --acl bucket-owner-read --profile membership
-aws s3 cp  RatePlan.csv             s3://ophan-raw-zuora-increment-rateplan/           --acl bucket-owner-read --profile membership
-aws s3 cp  Subscription.csv         s3://ophan-raw-zuora-increment-subscription/       --acl bucket-owner-read --profile membership
-aws s3 cp  Contact.csv              s3://ophan-raw-zuora-increment-contact/            --acl bucket-owner-read --profile membership
-aws s3 cp  PaymentMethod.csv        s3://ophan-raw-zuora-increment-paymentmethod/      --acl bucket-owner-read --profile membership
-aws s3 cp  Amendment.csv            s3://ophan-raw-zuora-increment-amendment/          --acl bucket-owner-read --profile membership
-aws s3 cp  Invoice.csv              s3://ophan-raw-zuora-increment-invoice/            --acl bucket-owner-read --profile membership
-aws s3 cp  Payment.csv              s3://ophan-raw-zuora-increment-payment/            --acl bucket-owner-read --profile membership
-aws s3 cp  InvoicePayment.csv       s3://ophan-raw-zuora-increment-invoicepayment/     --acl bucket-owner-read --profile membership
-aws s3 cp  Refund.csv               s3://ophan-raw-zuora-increment-refund/             --acl bucket-owner-read --profile membership
-aws s3 cp  InvoiceItem.csv          s3://ophan-raw-zuora-increment-invoiceitem/        --acl bucket-owner-read --profile membership
+aws s3 cp  Account.csv              s3://ophan-raw-zuora-increment-account/            --profile membership
+aws s3 cp  RatePlanCharge.csv       s3://ophan-raw-zuora-increment-rateplancharge/     --profile membership
+aws s3 cp  RatePlanChargeTier.csv   s3://ophan-raw-zuora-increment-rateplanchargetier/ --profile membership
+aws s3 cp  RatePlan.csv             s3://ophan-raw-zuora-increment-rateplan/           --profile membership
+aws s3 cp  Subscription.csv         s3://ophan-raw-zuora-increment-subscription/       --profile membership
+aws s3 cp  Contact.csv              s3://ophan-raw-zuora-increment-contact/            --profile membership
+aws s3 cp  PaymentMethod.csv        s3://ophan-raw-zuora-increment-paymentmethod/      --profile membership
+aws s3 cp  Amendment.csv            s3://ophan-raw-zuora-increment-amendment/          --profile membership
+aws s3 cp  Invoice.csv              s3://ophan-raw-zuora-increment-invoice/            --profile membership
+aws s3 cp  Payment.csv              s3://ophan-raw-zuora-increment-payment/            --profile membership
+aws s3 cp  InvoicePayment.csv       s3://ophan-raw-zuora-increment-invoicepayment/     --profile membership
+aws s3 cp  Refund.csv               s3://ophan-raw-zuora-increment-refund/             --profile membership
+aws s3 cp  InvoiceItem.csv          s3://ophan-raw-zuora-increment-invoiceitem/        --profile membership
 ```
 
 ## Auto-discovery of field names
