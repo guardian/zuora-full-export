@@ -7,7 +7,7 @@ lazy val root = (project in file("."))
   .settings(
     name := "zuora-full-export",
     libraryDependencies ++= Seq(
-      "org.scala-lang.modules" %% "scala-xml" % "2.1.0",
+      "org.scala-lang.modules" %% "scala-xml" % "2.4.0",
       "org.scalaj" %% "scalaj-http" % "2.4.2",
       "com.lihaoyi" %% "upickle" % "4.4.0",
       "com.github.pathikrit" %% "better-files" % "3.9.2",
